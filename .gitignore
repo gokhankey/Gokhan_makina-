@@ -1,0 +1,8 @@
+preview-fixed.html
+preview-standalone.html
+*.zip
+/.git/
+/git-data/
+/repo-git-test/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Gökhan Makina">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  <title>Gökhan Makina | Saha Yönetimi</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://www.gstatic.com">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+  <section id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="brand-panel">
+        <div class="brand-mark" aria-hidden="true">
+          <i class="fa-solid fa-gears"></i>
+        </div>
+        <p class="brand-kicker">Saha Servis Platformu</p>
+        <h1>Gökhan Makina</h1>
+        <p class="brand-copy">Personel, servis görevleri, konumlar ve ciro takibi tek ekranda.</p>
+        <div id="connectionBadge" class="connection-badge desktop-connection">
+          <span class="connection-dot"></span>
+          <span id="connectionText">Bağlantı hazırlanıyor</span>
+        </div>
+      </div>
+
+      <form id="loginForm" class="login-form" autocomplete="on" onsubmit="return false">
+        <div class="form-heading">
+          <h2>Giriş Yap</h2>
+          <p>Yetkili veya saha personeli hesabınızla devam edin.</p>
+        </div>
+        <div id="loginError" class="alert hidden">
+          Kullanıcı adı veya şifre hatalı.
+        </div>
+        <label class="field">
+          <span>Kullanıcı adı</span>
+          <input id="loginUsername" name="username" type="text" inputmode="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Kullanıcı adı">
+        </label>
+        <label class="field">
+          <span>Şifre</span>
+          <input id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="Şifre">
+        </label>
+        <button id="loginButton" class="primary-action" type="button">
+          <i class="fa-solid fa-right-to-bracket"></i>
+          Sisteme Giriş Yap
+        </button>
+        <div class="registered-users">
+          <div class="registered-users-head">
+            <strong>Kayıtlı kullanıcılar</strong>
+            <span>Seçince kullanıcı adı doldurulur.</span>
+          </div>
+          <div id="registeredUsersList" class="registered-users-list"></div>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <div id="appShell" class="app-shell hidden">
+    <header class="topbar">
+      <div class="topbar-brand">
+        <div class="topbar-mark" aria-hidden="true">
+          <i class="fa-solid fa-gears"></i>
+        </div>
+        <div>
+          <strong>Gökhan Makina</strong>
+          <span>Saha Yönetimi</span>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="clock-pill">
+          <span class="status-light"></span>
+          <span id="currentTime">00:00</span>
+        </div>
+        <span id="activeUserLabel" class="user-pill"></span>
+        <button id="installButton" class="icon-action hidden" type="button" title="Uygulama olarak yükle" aria-label="Uygulama olarak yükle">
+          <i class="fa-solid fa-download"></i>
+        </button>
+        <button id="logoutButton" class="danger-action" type="button">
+          <i class="fa-solid fa-power-off"></i>
+          <span>Çıkış</span>
+        </button>
+      </div>
+    </header>
+
+    <main id="adminView" class="admin-view hidden">
+      <section class="page-head">
+        <div>
+          <p class="eyebrow">Yönetici Paneli</p>
+          <h2>Saha ve servis durumu</h2>
+        </div>
+        <div class="head-actions">
+          <button id="openPersonnelModal" class="secondary-action" type="button">
+            <i class="fa-solid fa-user-plus"></i>
+            Personel Ekle
+          </button>
+          <button id="openTaskModal" class="primary-action compact" type="button">
+            <i class="fa-solid fa-plus"></i>
+            Yeni Görev
+          </button>
+        </div>
+      </section>
+
+      <section class="stats-grid" aria-label="Ozet bilgiler">
+        <article class="metric">
+          <span>Personel</span>
+          <strong id="statPersonnel">0</strong>
+          <small>Sistemde kayıtlı</small>
+        </article>
+        <article class="metric accent-orange">
+          <span>Açık görev</span>
+          <strong id="statOpen">0</strong>
+          <small>Sahada bekliyor</small>
+        </article>
+        <article class="metric accent-green">
+          <span>Bugün ciro</span>
+          <strong id="statDailyRevenue">0 TL</strong>
+          <small id="statTodayLabel">Bugün</small>
+        </article>
+        <article class="metric accent-blue">
+          <span>Bu ay ciro</span>
+          <strong id="statMonthlyRevenue">0 TL</strong>
+          <small id="statMonthLabel">Ay toplam</small>
+        </article>
+      </section>
+
+      <section class="operations-grid">
+        <div class="map-panel">
+          <div class="panel-title">
+            <div>
+              <p class="eyebrow">Canli Harita</p>
+              <h3>Personel ve açık servisler</h3>
+            </div>
+            <div class="map-legend">
+              <span><b class="dot blue"></b> Personel</span>
+              <span><b class="dot red"></b> Servis</span>
+            </div>
+          </div>
+          <div id="mainMap" class="map-canvas">
+            <div class="map-placeholder">Harita yukleniyor...</div>
+          </div>
+        </div>
+
+        <aside class="side-stack">
+          <section class="panel">
+            <div class="panel-title slim">
+              <h3>Personel</h3>
+              <span id="personnelCountLabel">0 kayıt</span>
+            </div>
+            <div id="personnelList" class="list-scroll">
+              <p class="empty-text">Personel verisi bekleniyor.</p>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-title slim">
+              <h3>Servis Akışı</h3>
+              <span id="feedCountLabel">0 hareket</span>
+            </div>
+            <div id="liveFeed" class="list-scroll feed-list">
+              <p class="empty-text">Henüz bir hareket yok.</p>
+            </div>
+          </section>
+        </aside>
+      </section>
+
+      <section class="revenue-panel">
+        <div class="panel-title">
+          <div>
+            <p class="eyebrow">Ciro Takvimi</p>
+            <h3>Günlük, haftalık ve aylık takip</h3>
+          </div>
+          <div class="calendar-controls">
+            <button id="prevMonth" class="icon-action" type="button" title="Önceki ay" aria-label="Önceki ay">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <strong id="calendarMonthLabel">Ay</strong>
+            <button id="nextMonth" class="icon-action" type="button" title="Sonraki ay" aria-label="Sonraki ay">
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="revenue-summary">
+          <div>
+            <span>Günlük</span>
+            <strong id="dailyRevenueTotal">0 TL</strong>
+          </div>
+          <div>
+            <span>Haftalık</span>
+            <strong id="weeklyRevenueTotal">0 TL</strong>
+          </div>
+          <div>
+            <span>Aylık</span>
+            <strong id="monthlyRevenueTotal">0 TL</strong>
+          </div>
+        </div>
+
+        <div class="calendar-layout">
+          <div class="calendar-card">
+            <div class="weekdays">
+              <span>Pzt</span><span>Salı</span><span>Çarş</span><span>Perş</span><span>Cuma</span><span>Cmt</span><span>Paz</span>
+            </div>
+            <div id="revenueCalendar" class="calendar-grid"></div>
+          </div>
+          <aside id="revenueDayDetail" class="day-detail">
+            <p class="empty-text">Bir gün seçerek o günün servis cirosunu görebilirsiniz.</p>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <main id="workerView" class="worker-view hidden">
+      <section class="worker-shell">
+        <header class="worker-head">
+          <div>
+            <span>Gökhan Makina</span>
+            <strong>İş Listem</strong>
+          </div>
+          <button id="workerRefresh" class="icon-action light" type="button" title="Yenile" aria-label="Yenile">
+            <i class="fa-solid fa-rotate-right"></i>
+          </button>
+        </header>
+
+        <div id="mobileNotification" class="mobile-notification hidden">
+          <i class="fa-solid fa-bell"></i>
+          Yeni bir görev atandı.
+        </div>
+
+        <div id="workerTasks" class="worker-task-list"></div>
+        <div id="workerEmptyState" class="worker-empty">
+          <i class="fa-solid fa-mug-hot"></i>
+          <strong>Bekleyen iş yok</strong>
+          <span>Yeni görev atandığında burada görünecek.</span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="personnelModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="personnelModalTitle">
+    <div class="modal-card narrow">
+      <header class="modal-head">
+        <h3 id="personnelModalTitle"><i class="fa-solid fa-user-plus"></i> Yeni Personel</h3>
+        <button class="icon-action" data-close-modal="personnelModal" type="button" aria-label="Kapat">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </header>
+      <form id="personnelForm" class="modal-body">
+        <label class="field">
+          <span>Ad Soyad</span>
+          <input id="newPersonName" type="text" placeholder="Orn: Ali Yilmaz" autocomplete="name">
+        </label>
+        <div class="two-col">
+          <label class="field">
+            <span>Kullanıcı adı</span>
+            <input id="newPersonUsername" type="text" placeholder="ali" autocapitalize="none" spellcheck="false">
+          </label>
+          <label class="field">
+            <span>Şifre</span>
+            <input id="newPersonPassword" type="text" placeholder="1234">
+          </label>
+        </div>
+        <button id="savePersonnelButton" class="primary-action" type="submit">
+          Personeli Kaydet
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div id="taskModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+    <div class="modal-card wide">
+      <header class="modal-head">
+        <h3 id="taskModalTitle"><i class="fa-solid fa-location-arrow"></i> Yeni Servis Görevi</h3>
+        <button class="icon-action" data-close-modal="taskModal" type="button" aria-label="Kapat">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </header>
+      <form id="taskForm" class="modal-body task-form">
+        <label class="field">
+          <span>Görevlendirilecek personel</span>
+          <select id="taskAssignee"></select>
+        </label>
+        <div class="two-col">
+          <label class="field">
+            <span>Müşteri / Firma</span>
+            <input id="taskCustomer" type="text" placeholder="Örn: Can Tekstil A.Ş.">
+          </label>
+          <label class="field">
+            <span>Telefon</span>
+            <input id="taskPhone" type="tel" inputmode="tel" placeholder="0555 123 45 67">
+          </label>
+        </div>
+        <label class="field">
+          <span>Arıza / işlem detayı</span>
+          <textarea id="taskDetail" rows="3" placeholder="Dikiş makinesi motor arızası..."></textarea>
+        </label>
+        <label class="field">
+          <span>Açık adres</span>
+          <textarea id="taskAddress" rows="2" placeholder="Mahalle, cadde, no..."></textarea>
+        </label>
+
+        <div class="map-picker">
+          <div class="map-picker-head">
+            <span>Haritadan konum seçin</span>
+            <button id="toggleMiniMap" class="secondary-action small" type="button">
+              <i class="fa-solid fa-expand"></i>
+              Büyüt
+            </button>
+          </div>
+          <div class="search-row">
+            <input id="mapSearchInput" type="search" placeholder="Adres veya mekan ara">
+            <button id="mapSearchButton" class="secondary-action small" type="button">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              Ara
+            </button>
+          </div>
+          <div id="miniMapWrap" class="mini-map-wrap">
+            <button id="closeMiniMapFullscreen" class="danger-action floating hidden" type="button">
+              <i class="fa-solid fa-compress"></i>
+              Küçült
+            </button>
+            <div id="miniMap" class="mini-map">
+              <div class="map-placeholder">Harita yukleniyor...</div>
+            </div>
+          </div>
+          <input id="taskLat" type="hidden" value="37.1950">
+          <input id="taskLng" type="hidden" value="40.5847">
+        </div>
+
+        <footer class="modal-actions">
+          <button class="ghost-action" data-close-modal="taskModal" type="button">İptal</button>
+          <button id="assignTaskButton" class="primary-action compact" type="submit">
+            Görevi Gönder
+          </button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
+  <div id="completeModal" class="modal bottom hidden" role="dialog" aria-modal="true" aria-labelledby="completeModalTitle">
+    <div class="modal-card narrow">
+      <header class="modal-head">
+        <div>
+          <h3 id="completeModalTitle">Servisi Tamamla</h3>
+          <p id="completeCustomerName"></p>
+        </div>
+        <button class="icon-action" data-close-modal="completeModal" type="button" aria-label="Kapat">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </header>
+      <form id="completeForm" class="modal-body">
+        <input id="completeTaskId" type="hidden">
+        <label class="field">
+          <span>Yapılan işlem / açıklama</span>
+          <textarea id="completeNote" rows="4" placeholder="Örn: Anakart değiştirildi, test edildi..."></textarea>
+        </label>
+        <label class="field">
+          <span>Alınan servis ücreti</span>
+          <div class="money-input">
+            <input id="completePrice" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
+            <b>TL</b>
+          </div>
+        </label>
+        <button id="submitCompleteButton" class="primary-action success" type="submit">
+          <i class="fa-solid fa-check"></i>
+          Admine Gönder
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal-card confirm-card">
+      <div class="confirm-icon">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+      </div>
+      <h3 id="confirmTitle">Emin misiniz?</h3>
+      <p id="confirmText"></p>
+      <div id="confirmExtra" class="confirm-extra hidden">
+        <label class="field">
+          <span id="confirmInputLabel">Onay yazısı</span>
+          <input id="confirmInput" type="text" autocomplete="off">
+        </label>
+      </div>
+      <footer class="confirm-actions">
+        <button id="confirmCancel" class="ghost-action" type="button">Vazgeç</button>
+        <button id="confirmOk" class="danger-action" type="button">Evet, Sil</button>
+      </footer>
+    </div>
+  </div>
+</body>
+</html>
