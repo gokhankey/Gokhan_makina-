@@ -221,6 +221,12 @@ function handleDocumentClick(event) {
   const deleteRevenueButton = event.target.closest("[data-delete-revenue]");
   if (deleteRevenueButton) {
     deleteRevenueTask(deleteRevenueButton.dataset.deleteRevenue);
+    return;
+  }
+
+  const deleteOpenTaskButton = event.target.closest("[data-delete-open-task]");
+  if (deleteOpenTaskButton) {
+    deleteOpenTask(deleteOpenTaskButton.dataset.deleteOpenTask);
   }
 }
 
@@ -871,7 +877,8 @@ function renderLiveFeed() {
         time: task.completedAt,
         title: "Servis tamamlandı",
         desc: `${person ? person.name : "Personel"}, ${task.customer} işlemini bitirdi.`,
-        price: task.price || 0
+        price: task.price || 0,
+        taskId: task.id
       };
     }),
     ...taskData.filter((task) => task.status === "open" && task.createdAt).map((task) => {
@@ -881,7 +888,8 @@ function renderLiveFeed() {
         time: task.createdAt,
         title: "Görev atandı",
         desc: `${person ? person.name : "Personel"} personeline ${task.customer} için görev verildi.`,
-        price: 0
+        price: 0,
+        taskId: task.id
       };
     })
   ].sort((a, b) => b.time - a.time);
@@ -901,6 +909,12 @@ function renderLiveFeed() {
       </div>
       <p>${escapeHtml(item.desc)}</p>
       ${item.price > 0 ? `<span class="day-total">${formatMoney(item.price)}</span>` : ""}
+      ${currentRole === "admin" && item.type === "new" ? `
+        <button class="feed-delete-action" data-delete-open-task="${escapeAttr(item.taskId)}" type="button" title="Görevi sil">
+          <i class="fa-solid fa-trash-can"></i>
+          Görevi sil
+        </button>
+      ` : ""}
     </article>
   `).join("");
 }
@@ -1109,6 +1123,39 @@ function deleteRevenueTask(taskId) {
     confirmText: "SİL",
     inputLabel: "Silmek için SİL yazın",
     okText: "Ciro Kaydını Sil"
+  });
+}
+
+function deleteOpenTask(taskId) {
+  if (currentRole !== "admin") {
+    showToast("Görevi yalnızca admin silebilir.", "error");
+    return;
+  }
+
+  const task = taskData.find((item) => item.id === taskId && item.status === "open");
+  if (!task) {
+    showToast("Silinecek açık görev bulunamadı.", "error");
+    return;
+  }
+
+  const person = personnelData.find((item) => item.id === task.pId);
+  const message = `${person ? person.name : "Personel"} personeline atanan ${task.customer} görevi silinecek. Bu işlem geri alınamaz.`;
+  showConfirm(message, async () => {
+    const hasOtherOpenTasks = taskData.some((item) => item.id !== task.id && item.pId === task.pId && item.status === "open");
+    try {
+      await store.deleteTask(task.id);
+      if (!hasOtherOpenTasks) {
+        await store.updatePersonnel(task.pId, { status: "Bekliyor" });
+      }
+      showToast("Görev silindi.", "info");
+    } catch (error) {
+      console.error(error);
+      showToast("Görev silinemedi.", "error");
+    }
+  }, {
+    confirmText: "SİL",
+    inputLabel: "Silmek için SİL yazın",
+    okText: "Görevi Sil"
   });
 }
 
