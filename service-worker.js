@@ -1,4 +1,4 @@
-const CACHE_NAME = "gokhan-makina-v3";
+const CACHE_NAME = "gokhan-makina-v4";
 const APP_SHELL = [
   "./",
   "./index.html",

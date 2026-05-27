@@ -1,7 +1,7 @@
 const defaultPosition = { lat: 37.1950, lng: 40.5847 };
 const storageKey = "gokhan-makina-field-state-v3";
 const sessionKey = "gokhan-makina-active-session-v1";
-const savedUsersKey = "gokhan-makina-saved-login-users-v1";
+const savedUsersKey = "gokhan-makina-saved-login-users-v2";
 const clientKey = "gokhan-makina-client-id-v1";
 const firebaseAppId = "gokhan-makina-v1";
 const adminCredentials = { username: "mesut", password: "0852" };
@@ -96,7 +96,8 @@ const els = {
   confirmInputLabel: $("#confirmInputLabel"),
   confirmCancel: $("#confirmCancel"),
   confirmOk: $("#confirmOk"),
-  registeredUsersList: $("#registeredUsersList")
+  registeredUsersList: $("#registeredUsersList"),
+  clearSavedUsersButton: $("#clearSavedUsersButton")
 };
 
 boot();
@@ -183,6 +184,18 @@ function handleDocumentClick(event) {
   if (calendarDay) {
     selectedDateKey = calendarDay.dataset.dateKey;
     renderRevenueDashboard();
+    return;
+  }
+
+  const clearSavedUsersButton = event.target.closest("[data-clear-saved-users]");
+  if (clearSavedUsersButton) {
+    clearSavedLoginUsers();
+    return;
+  }
+
+  const deleteSavedUserButton = event.target.closest("[data-delete-saved-user]");
+  if (deleteSavedUserButton) {
+    forgetLoginUser(deleteSavedUserButton.dataset.deleteSavedUser);
     return;
   }
 
@@ -496,6 +509,29 @@ function rememberLoginUser(user) {
   renderRegisteredUsers();
 }
 
+function forgetLoginUser(username) {
+  const normalizedUsername = String(username || "").trim().toLowerCase();
+  if (!normalizedUsername) return;
+
+  const rows = readSavedLoginUsers().filter((row) => row.username !== normalizedUsername);
+  writeSavedLoginUsers(rows);
+  renderRegisteredUsers();
+  showToast("Kayıtlı kullanıcı silindi.", "info");
+}
+
+function clearSavedLoginUsers() {
+  const rows = readSavedLoginUsers();
+  if (!rows.length) return;
+
+  showConfirm("Bu cihazdaki kayıtlı kullanıcı listesini temizlemek istiyor musunuz?", () => {
+    writeSavedLoginUsers([]);
+    renderRegisteredUsers();
+    showToast("Kayıtlı kullanıcılar temizlendi.", "info");
+  }, {
+    okText: "Listeyi Temizle"
+  });
+}
+
 function resolveSavedLoginUser(savedUser) {
   if (!savedUser?.username) return null;
 
@@ -522,14 +558,14 @@ function restoreSession() {
   if (!session || !session.role) return;
 
   if (session.role === "admin") {
-    showAdmin();
+    showAdmin({ remember: false });
     return;
   }
 
   if (session.role === "worker") {
     const person = personnelData.find((item) => item.id === session.userId || item.username === session.username);
     if (person) {
-      showWorker(person);
+      showWorker(person, { remember: false });
       return;
     }
   }
@@ -568,7 +604,7 @@ async function handleLogin(event) {
   setBusy(els.loginButton, false);
 }
 
-function showAdmin() {
+function showAdmin(options = {}) {
   currentRole = "admin";
   activeMobileUserId = null;
   activeMobileUserName = "";
@@ -578,11 +614,13 @@ function showAdmin() {
   els.workerView.classList.add("hidden");
   els.activeUserLabel.innerHTML = `<i class="fa-solid fa-user-tie"></i> Admin: Mesut`;
   saveSession({ role: "admin", username: adminCredentials.username });
-  rememberLoginUser({
-    role: "Yönetici",
-    name: "Mesut",
-    username: adminCredentials.username
-  });
+  if (options.remember !== false) {
+    rememberLoginUser({
+      role: "Yönetici",
+      name: "Mesut",
+      username: adminCredentials.username
+    });
+  }
   initMaps();
   renderAll();
   setTimeout(() => {
@@ -590,7 +628,7 @@ function showAdmin() {
   }, 200);
 }
 
-function showWorker(person) {
+function showWorker(person, options = {}) {
   currentRole = "worker";
   activeMobileUserId = person.id;
   activeMobileUserName = person.name;
@@ -600,12 +638,14 @@ function showWorker(person) {
   els.workerView.classList.remove("hidden");
   els.activeUserLabel.innerHTML = `<i class="fa-solid fa-helmet-safety"></i> ${escapeHtml(person.name)}`;
   saveSession({ role: "worker", userId: person.id, username: person.username });
-  rememberLoginUser({
-    role: "Personel",
-    name: person.name,
-    username: person.username,
-    userId: person.id
-  });
+  if (options.remember !== false) {
+    rememberLoginUser({
+      role: "Personel",
+      name: person.name,
+      username: person.username,
+      userId: person.id
+    });
+  }
   renderMobileApp();
 }
 
@@ -692,19 +732,26 @@ function renderRegisteredUsers() {
     .map(resolveSavedLoginUser)
     .filter(Boolean);
 
+  els.clearSavedUsersButton?.classList.toggle("hidden", rows.length === 0);
+
   if (!rows.length) {
     els.registeredUsersList.innerHTML = `<p class="registered-empty">Bu cihazda kayıtlı kullanıcı yok.</p>`;
     return;
   }
 
   els.registeredUsersList.innerHTML = rows.map((user) => `
-    <button class="registered-user" data-login-user="${escapeAttr(user.username)}" type="button">
-      <span class="registered-user-icon"><i class="fa-solid ${user.icon}"></i></span>
-      <span>
-        <strong>${escapeHtml(user.name)}</strong>
-        <small>${escapeHtml(user.role)} - ${escapeHtml(user.username)}</small>
-      </span>
-    </button>
+    <div class="registered-user-row">
+      <button class="registered-user" data-login-user="${escapeAttr(user.username)}" type="button">
+        <span class="registered-user-icon"><i class="fa-solid ${user.icon}"></i></span>
+        <span>
+          <strong>${escapeHtml(user.name)}</strong>
+          <small>${escapeHtml(user.role)} - ${escapeHtml(user.username)}</small>
+        </span>
+      </button>
+      <button class="registered-user-delete" data-delete-saved-user="${escapeAttr(user.username)}" type="button" title="Kayıttan sil" aria-label="${escapeAttr(user.name)} kaydını sil">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
   `).join("");
 }
 

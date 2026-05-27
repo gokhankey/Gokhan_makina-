@@ -198,13 +198,28 @@ button:disabled {
 }
 
 .registered-users-head strong {
+  display: block;
   font-size: 13px;
 }
 
 .registered-users-head span {
+  display: block;
+  margin-top: 2px;
   color: var(--muted);
   font-size: 11px;
   font-weight: 700;
+}
+
+.clear-saved-users {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #991b1b;
+  min-height: 28px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .registered-users-list {
@@ -212,6 +227,13 @@ button:disabled {
   gap: 8px;
   max-height: 150px;
   overflow: auto;
+}
+
+.registered-user-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px;
+  gap: 8px;
+  align-items: stretch;
 }
 
 .registered-user {
@@ -230,6 +252,20 @@ button:disabled {
 .registered-user:hover {
   border-color: rgba(37, 99, 235, 0.45);
   background: #f8fbff;
+}
+
+.registered-user-delete {
+  border: 1px solid #fecaca;
+  border-radius: var(--radius);
+  background: #fff7f7;
+  color: #b91c1c;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.registered-user-delete:hover,
+.clear-saved-users:hover {
+  background: #fee2e2;
 }
 
 .registered-user-icon {
