@@ -126,7 +126,6 @@ async function initDataLayer() {
   subscribeToStore();
   applyLoginParams();
   restoreSession();
-  showToast("Yerel kayıt modu hazır.", "info");
   initFirebaseBackup();
 }
 
