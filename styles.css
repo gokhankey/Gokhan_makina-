@@ -255,6 +255,17 @@ button:disabled {
   font-weight: 800;
 }
 
+.registered-empty {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
 .form-heading h2,
 .page-head h2,
 .panel-title h3,

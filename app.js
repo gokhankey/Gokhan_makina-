@@ -1,6 +1,7 @@
 const defaultPosition = { lat: 37.1950, lng: 40.5847 };
 const storageKey = "gokhan-makina-field-state-v3";
 const sessionKey = "gokhan-makina-active-session-v1";
+const savedUsersKey = "gokhan-makina-saved-login-users-v1";
 const clientKey = "gokhan-makina-client-id-v1";
 const firebaseAppId = "gokhan-makina-v1";
 const adminCredentials = { username: "mesut", password: "0852" };
@@ -469,6 +470,53 @@ function clearSession() {
   removeJson(sessionKey);
 }
 
+function readSavedLoginUsers() {
+  const rows = readJson(savedUsersKey);
+  return Array.isArray(rows) ? rows : [];
+}
+
+function writeSavedLoginUsers(rows) {
+  writeJson(savedUsersKey, rows.slice(0, 12));
+}
+
+function rememberLoginUser(user) {
+  if (!user?.username) return;
+
+  const normalizedUsername = user.username.trim().toLowerCase();
+  const rows = readSavedLoginUsers().filter((row) => row.username !== normalizedUsername);
+  rows.unshift({
+    username: normalizedUsername,
+    userId: user.userId || "",
+    name: user.name || normalizedUsername,
+    role: user.role || "Personel",
+    savedAt: Date.now()
+  });
+
+  writeSavedLoginUsers(rows);
+  renderRegisteredUsers();
+}
+
+function resolveSavedLoginUser(savedUser) {
+  if (!savedUser?.username) return null;
+
+  if (savedUser.username === adminCredentials.username) {
+    return {
+      role: "Yönetici",
+      name: "Mesut",
+      username: adminCredentials.username,
+      icon: "fa-user-tie"
+    };
+  }
+
+  const person = personnelData.find((item) => item.id === savedUser.userId || item.username === savedUser.username);
+  return {
+    role: "Personel",
+    name: person?.name || savedUser.name || savedUser.username,
+    username: person?.username || savedUser.username,
+    icon: "fa-helmet-safety"
+  };
+}
+
 function restoreSession() {
   const session = readJson(sessionKey);
   if (!session || !session.role) return;
@@ -530,6 +578,11 @@ function showAdmin() {
   els.workerView.classList.add("hidden");
   els.activeUserLabel.innerHTML = `<i class="fa-solid fa-user-tie"></i> Admin: Mesut`;
   saveSession({ role: "admin", username: adminCredentials.username });
+  rememberLoginUser({
+    role: "Yönetici",
+    name: "Mesut",
+    username: adminCredentials.username
+  });
   initMaps();
   renderAll();
   setTimeout(() => {
@@ -547,6 +600,12 @@ function showWorker(person) {
   els.workerView.classList.remove("hidden");
   els.activeUserLabel.innerHTML = `<i class="fa-solid fa-helmet-safety"></i> ${escapeHtml(person.name)}`;
   saveSession({ role: "worker", userId: person.id, username: person.username });
+  rememberLoginUser({
+    role: "Personel",
+    name: person.name,
+    username: person.username,
+    userId: person.id
+  });
   renderMobileApp();
 }
 
@@ -627,22 +686,16 @@ function renderPersonnelList() {
 }
 
 function renderRegisteredUsers() {
-  const rows = [
-    {
-      role: "Yönetici",
-      name: "Mesut",
-      username: adminCredentials.username,
-      icon: "fa-user-tie"
-    },
-    ...personnelData.map((person) => ({
-      role: "Personel",
-      name: person.name,
-      username: person.username,
-      icon: "fa-helmet-safety"
-    }))
-  ];
-
   if (!els.registeredUsersList) return;
+
+  const rows = readSavedLoginUsers()
+    .map(resolveSavedLoginUser)
+    .filter(Boolean);
+
+  if (!rows.length) {
+    els.registeredUsersList.innerHTML = `<p class="registered-empty">Bu cihazda kayıtlı kullanıcı yok.</p>`;
+    return;
+  }
 
   els.registeredUsersList.innerHTML = rows.map((user) => `
     <button class="registered-user" data-login-user="${escapeAttr(user.username)}" type="button">
