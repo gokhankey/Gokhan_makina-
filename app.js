@@ -5,7 +5,7 @@ const savedUsersKey = "gokhan-makina-saved-login-users-v2";
 const clientKey = "gokhan-makina-client-id-v1";
 const firebaseAppId = "gokhan-makina-v1";
 const adminCredentials = { username: "mesut", password: "0852" };
-const firebaseVapidKey = "FIREBASE_WEB_PUSH_VAPID_KEY_BURAYA";
+const firebaseVapidKey = "BOee8VF40_BPxOQdUvG5A9Ybd_PD_ISOGb3f5gVtdtZWkgqjyuhSJCjFLTjLhCAN3cklByagBdMT2Vaw-GbXJl";
 const firebaseConfig = {
   apiKey: "AIzaSyBZfRIh5ArL-WObbjh09XMa0y--2nvUyFI",
   authDomain: "gokhan-makina.firebaseapp.com",
