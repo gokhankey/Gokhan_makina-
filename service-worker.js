@@ -1,4 +1,4 @@
-const CACHE_NAME = "gokhan-makina-v4";
+const CACHE_NAME = "gokhan-makina-v5";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -9,6 +9,38 @@ const APP_SHELL = [
   "./icon-192.png",
   "./icon-512.png"
 ];
+
+try {
+  importScripts("https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js");
+  importScripts("https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging-compat.js");
+
+  firebase.initializeApp({
+    apiKey: "AIzaSyBZfRIh5ArL-WObbjh09XMa0y--2nvUyFI",
+    authDomain: "gokhan-makina.firebaseapp.com",
+    projectId: "gokhan-makina",
+    storageBucket: "gokhan-makina.firebasestorage.app",
+    messagingSenderId: "1088331719728",
+    appId: "1:1088331719728:web:58c5e78bb205164be279f5",
+    measurementId: "G-1WT7FVD1NY"
+  });
+
+  const messaging = firebase.messaging();
+  messaging.onBackgroundMessage((payload) => {
+    const title = payload.notification?.title || "Yeni servis görevi";
+    const options = {
+      body: payload.notification?.body || "Yeni bir görev atandı.",
+      icon: "./icon-192.png",
+      badge: "./icon-192.png",
+      data: {
+        url: payload.data?.url || self.registration.scope
+      }
+    };
+
+    self.registration.showNotification(title, options);
+  });
+} catch (error) {
+  console.warn("Firebase Messaging service worker yüklenemedi:", error);
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -38,6 +70,21 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         return response;
       });
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || self.registration.scope;
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ("focus" in client) return client.focus();
+      }
+      if (clients.openWindow) return clients.openWindow(targetUrl);
+      return undefined;
     })
   );
 });

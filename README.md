@@ -26,6 +26,25 @@ Yedek doküman yolu:
 artifacts/gokhan-makina-v1/public/data/backups/main
 ```
 
+## Kapalıyken Bildirim
+
+Personel telefonuna uygulama kapalıyken bildirim gitmesi için Firebase Cloud Messaging kullanılır.
+
+Firebase Console'da:
+
+1. Project Settings > Cloud Messaging bölümünden Web Push certificate oluşturun.
+2. Oluşan VAPID key değerini `app.js` içindeki `firebaseVapidKey` alanına yazın.
+3. `firestore.rules` dosyasını yayınlayın.
+4. Firebase Functions'ı deploy edin:
+
+```powershell
+firebase deploy --only functions,firestore:rules
+```
+
+Personel ilk giriş yaptığında tarayıcı bildirim izni ister. İzin verildikten sonra cihaz token'ı Firestore'a kaydedilir ve yeni görev atanırken bildirim gönderilir.
+
+Not: iPhone'da kapalıyken web bildirimi için site ana ekrana eklenmiş PWA olarak açılmalıdır. Android Chrome'da bildirim izni yeterlidir.
+
 ## Dosyalar
 
 - `index.html`: Ana sayfa.

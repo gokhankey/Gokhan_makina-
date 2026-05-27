@@ -5,6 +5,7 @@ const savedUsersKey = "gokhan-makina-saved-login-users-v2";
 const clientKey = "gokhan-makina-client-id-v1";
 const firebaseAppId = "gokhan-makina-v1";
 const adminCredentials = { username: "mesut", password: "0852" };
+const firebaseVapidKey = "FIREBASE_WEB_PUSH_VAPID_KEY_BURAYA";
 const firebaseConfig = {
   apiKey: "AIzaSyBZfRIh5ArL-WObbjh09XMa0y--2nvUyFI",
   authDomain: "gokhan-makina.firebaseapp.com",
@@ -20,6 +21,7 @@ let storeReady = false;
 let userSession = null;
 let memoryState = { personnel: [], tasks: [] };
 let cloudBackup = {
+  app: null,
   db: null,
   firestore: null,
   docRef: null,
@@ -27,6 +29,10 @@ let cloudBackup = {
   hydrating: false,
   saveTimer: null,
   unsubscribe: null
+};
+let pushMessaging = {
+  listenerReady: false,
+  lastToken: ""
 };
 let clientId = null;
 let currentRole = null;
@@ -127,6 +133,12 @@ async function initDataLayer() {
 function setupEvents() {
   els.loginForm.addEventListener("submit", handleLogin);
   els.loginButton.addEventListener("click", handleLogin);
+  els.loginForm.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleLogin(event);
+    }
+  });
   els.logoutButton.addEventListener("click", logout);
   els.openPersonnelModal.addEventListener("click", () => openModal("personnelModal"));
   els.openTaskModal.addEventListener("click", openTaskModal);
@@ -367,6 +379,7 @@ async function initFirebaseBackup() {
     const auth = authMod.getAuth(app);
     await authMod.signInAnonymously(auth);
 
+    cloudBackup.app = app;
     cloudBackup.firestore = firestoreMod;
     cloudBackup.db = firestoreMod.getFirestore(app);
     cloudBackup.docRef = firestoreMod.doc(
@@ -410,12 +423,105 @@ async function initFirebaseBackup() {
     });
 
     setConnectionState("online", "Firebase yedeği aktif");
+
+    if (activeMobileUserId) {
+      const person = personnelData.find((item) => item.id === activeMobileUserId);
+      if (person) registerPushTokenForUser(person, { silent: true });
+    }
   } catch (error) {
     console.error("Firebase backup error:", error);
     cloudBackup.enabled = false;
     setConnectionState("error", "Yerel kayıt modu, Firebase yedeği pasif");
     showToast("Firebase yedeği bağlanamadı. Anonymous Auth ve Firestore ayarlarını kontrol edin.", "error");
   }
+}
+
+async function registerPushTokenForUser(person, options = {}) {
+  if (!person || currentRole !== "worker") return;
+
+  if (!firebaseVapidKey || firebaseVapidKey.includes("BURAYA")) {
+    if (!options.silent) {
+      showToast("Kapalıyken bildirim için Firebase Web Push VAPID anahtarı gerekiyor.", "info");
+    }
+    return;
+  }
+
+  if (!cloudBackup.app || !cloudBackup.firestore || !cloudBackup.db) {
+    if (!options.silent) showToast("Bildirim kaydı için Firebase bağlantısı bekleniyor.", "info");
+    return;
+  }
+
+  if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+    if (!options.silent) showToast("Bu tarayıcı kapalıyken bildirim desteklemiyor.", "error");
+    return;
+  }
+
+  try {
+    let permission = Notification.permission;
+    if (options.silent && permission === "default") return;
+
+    if (permission === "default") {
+      permission = await Notification.requestPermission();
+    }
+
+    if (permission !== "granted") {
+      if (!options.silent) showToast("Bildirim izni verilmedi.", "error");
+      return;
+    }
+
+    const messagingMod = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging.js");
+    const registration = await navigator.serviceWorker.register("./service-worker.js");
+    const messaging = messagingMod.getMessaging(cloudBackup.app);
+    const token = await messagingMod.getToken(messaging, {
+      vapidKey: firebaseVapidKey,
+      serviceWorkerRegistration: registration
+    });
+
+    if (!token) {
+      if (!options.silent) showToast("Bildirim cihaz kaydı alınamadı.", "error");
+      return;
+    }
+
+    const tokenId = tokenToDocId(token);
+    await cloudBackup.firestore.setDoc(
+      cloudBackup.firestore.doc(
+        cloudBackup.db,
+        "artifacts",
+        firebaseAppId,
+        "public",
+        "data",
+        "pushTokens",
+        tokenId
+      ),
+      {
+        token,
+        pId: person.id,
+        username: person.username,
+        name: person.name,
+        clientId,
+        updatedAt: cloudBackup.firestore.serverTimestamp()
+      },
+      { merge: true }
+    );
+
+    pushMessaging.lastToken = token;
+    if (!pushMessaging.listenerReady) {
+      messagingMod.onMessage(messaging, (payload) => {
+        showToast(payload.notification?.body || payload.notification?.title || "Yeni bildirim var.", "info");
+        if (activeMobileUserId) renderMobileApp();
+      });
+      pushMessaging.listenerReady = true;
+    }
+
+    if (!options.silent) showToast("Bildirim izni kaydedildi.", "success");
+  } catch (error) {
+    console.error("Push registration error:", error);
+    if (!options.silent) showToast("Bildirim kaydı yapılamadı. VAPID anahtarını ve HTTPS yayını kontrol edin.", "error");
+  }
+}
+
+function tokenToDocId(token) {
+  return String(token).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 900);
 }
 
 function normalizeCloudState(state) {
@@ -646,6 +752,7 @@ function showWorker(person, options = {}) {
       userId: person.id
     });
   }
+  registerPushTokenForUser(person, { silent: options.remember === false });
   renderMobileApp();
 }
 

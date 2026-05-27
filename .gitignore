@@ -4,5 +4,8 @@ preview-standalone.html
 /.git/
 /git-data/
 /repo-git-test/
+/.firebase/
+/functions/node_modules/
+firebase-debug.log
 .DS_Store
 Thumbs.db
