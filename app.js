@@ -875,9 +875,10 @@ function renderLiveFeed() {
         type: "success",
         time: task.completedAt,
         title: "Servis tamamlandı",
-        desc: `${person ? person.name : "Personel"}, ${task.customer} işlemini bitirdi.`,
+        desc: `${person ? person.name : "Personel"} servisi tamamladı.`,
         price: task.price || 0,
-        taskId: task.id
+        taskId: task.id,
+        task
       };
     }),
     ...taskData.filter((task) => task.status === "open" && task.createdAt).map((task) => {
@@ -888,7 +889,8 @@ function renderLiveFeed() {
         title: "Görev atandı",
         desc: `${person ? person.name : "Personel"} personeline ${task.customer} için görev verildi.`,
         price: 0,
-        taskId: task.id
+        taskId: task.id,
+        task
       };
     })
   ].sort((a, b) => b.time - a.time);
@@ -907,6 +909,7 @@ function renderLiveFeed() {
         <span>${formatTime(new Date(item.time))}</span>
       </div>
       <p>${escapeHtml(item.desc)}</p>
+      ${renderFeedDetails(item.task, item.type === "success")}
       ${item.price > 0 ? `<span class="day-total">${formatMoney(item.price)}</span>` : ""}
       ${currentRole === "admin" && item.type === "new" ? `
         <button class="feed-delete-action" data-delete-open-task="${escapeAttr(item.taskId)}" type="button" title="Görevi sil">
@@ -916,6 +919,38 @@ function renderLiveFeed() {
       ` : ""}
     </article>
   `).join("");
+}
+
+function renderFeedDetails(task, includeCompletionNote = false) {
+  const rows = [
+    ["Müşteri", task.customer],
+    ["Telefon", task.phone],
+    ["İşlem detayı", task.detail],
+    ["Adres", task.address]
+  ];
+
+  if (includeCompletionNote && task.note) {
+    rows.push(["Personel notu", task.note]);
+  }
+
+  const html = rows
+    .filter(([, value]) => String(value || "").trim())
+    .map(([label, value]) => {
+      const safeValue = escapeHtml(value);
+      const valueHtml = label === "Telefon"
+        ? `<a href="tel:${escapeAttr(value)}">${safeValue}</a>`
+        : safeValue;
+
+      return `
+        <div>
+          <dt>${escapeHtml(label)}</dt>
+          <dd>${valueHtml}</dd>
+        </div>
+      `;
+    })
+    .join("");
+
+  return html ? `<dl class="feed-details">${html}</dl>` : "";
 }
 
 function renderMobileApp() {
