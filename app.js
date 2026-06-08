@@ -906,7 +906,7 @@ function renderLiveFeed() {
     <article class="feed-item ${item.type}">
       <div class="feed-top">
         <strong>${escapeHtml(item.title)}</strong>
-        <span>${formatTime(new Date(item.time))}</span>
+        <span class="feed-date">${formatDateTimeShort(new Date(item.time))}</span>
       </div>
       <p>${escapeHtml(item.desc)}</p>
       ${renderFeedDetails(item.task, item.type === "success")}
@@ -1621,6 +1621,10 @@ function formatMoney(value) {
 
 function formatTime(date) {
   return date.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDateTimeShort(date) {
+  return `${date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" })} ${formatTime(date)}`;
 }
 
 function formatDateHuman(date) {

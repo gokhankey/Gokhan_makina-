@@ -840,6 +840,12 @@ select:focus {
   gap: 8px;
 }
 
+.feed-date {
+  flex: 0 0 auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .feed-item p {
   margin: 6px 0 0;
   line-height: 1.4;
