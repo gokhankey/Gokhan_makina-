@@ -837,7 +837,16 @@ select:focus {
 .feed-top {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 8px;
+}
+
+.feed-top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 112px;
 }
 
 .feed-date {
@@ -885,6 +894,37 @@ select:focus {
 .feed-details a {
   color: var(--brand);
   text-decoration: none;
+}
+
+.feed-edit-action,
+.feed-share-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.feed-edit-action {
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  color: var(--brand);
+}
+
+.feed-edit-action:hover {
+  background: #dbeafe;
+}
+
+.feed-share-action {
+  border: 1px solid rgba(15, 118, 110, 0.22);
+  color: var(--brand-2);
+}
+
+.feed-share-action:hover {
+  background: #ccfbf1;
 }
 
 .feed-delete-action {
@@ -1279,6 +1319,15 @@ select:focus {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+.edit-completed-fields {
+  display: grid;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid rgba(22, 163, 74, 0.18);
+  border-radius: var(--radius);
+  background: #f0fdf4;
 }
 
 .map-picker {

@@ -390,6 +390,65 @@
     </div>
   </div>
 
+  <div id="editTaskModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="editTaskModalTitle">
+    <div class="modal-card wide">
+      <header class="modal-head">
+        <div>
+          <h3 id="editTaskModalTitle"><i class="fa-solid fa-pen-to-square"></i> Görevi Düzenle</h3>
+          <p id="editTaskStatusText"></p>
+        </div>
+        <button class="icon-action" data-close-modal="editTaskModal" type="button" aria-label="Kapat">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </header>
+      <form id="editTaskForm" class="modal-body task-form">
+        <input id="editTaskId" type="hidden">
+        <label class="field">
+          <span>Görevlendirilen personel</span>
+          <select id="editTaskAssignee"></select>
+        </label>
+        <div class="two-col">
+          <label class="field">
+            <span>Müşteri / Firma</span>
+            <input id="editTaskCustomer" type="text" placeholder="Müşteri adı">
+          </label>
+          <label class="field">
+            <span>Telefon</span>
+            <input id="editTaskPhone" type="tel" inputmode="tel" placeholder="0555 123 45 67">
+          </label>
+        </div>
+        <label class="field">
+          <span>Arıza / işlem detayı</span>
+          <textarea id="editTaskDetail" rows="3" placeholder="İşlem detayını yazın"></textarea>
+        </label>
+        <label class="field">
+          <span>Açık adres</span>
+          <textarea id="editTaskAddress" rows="2" placeholder="Mahalle, cadde, no..."></textarea>
+        </label>
+        <div id="editCompletedFields" class="edit-completed-fields hidden">
+          <label class="field">
+            <span>Personel notu</span>
+            <textarea id="editTaskNote" rows="3" placeholder="Tamamlanan iş notu"></textarea>
+          </label>
+          <label class="field">
+            <span>Alınan servis ücreti</span>
+            <div class="money-input">
+              <input id="editTaskPrice" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
+              <b>TL</b>
+            </div>
+          </label>
+        </div>
+        <footer class="modal-actions">
+          <button class="ghost-action" data-close-modal="editTaskModal" type="button">İptal</button>
+          <button id="saveEditTaskButton" class="primary-action compact" type="submit">
+            <i class="fa-solid fa-floppy-disk"></i>
+            Değişiklikleri Kaydet
+          </button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
   <div id="confirmModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
     <div class="modal-card confirm-card">
       <div class="confirm-icon">

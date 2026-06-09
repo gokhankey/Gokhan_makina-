@@ -75,10 +75,12 @@ const els = {
   personnelModal: $("#personnelModal"),
   taskModal: $("#taskModal"),
   completeModal: $("#completeModal"),
+  editTaskModal: $("#editTaskModal"),
   confirmModal: $("#confirmModal"),
   personnelForm: $("#personnelForm"),
   taskForm: $("#taskForm"),
   completeForm: $("#completeForm"),
+  editTaskForm: $("#editTaskForm"),
   personnelList: $("#personnelList"),
   liveFeed: $("#liveFeed"),
   workerTasks: $("#workerTasks"),
@@ -144,6 +146,7 @@ function setupEvents() {
   els.personnelForm.addEventListener("submit", saveNewPersonnel);
   els.taskForm.addEventListener("submit", assignTask);
   els.completeForm.addEventListener("submit", submitCompletedTask);
+  els.editTaskForm.addEventListener("submit", saveEditedTask);
   els.toggleMiniMap.addEventListener("click", toggleMiniMapFullscreen);
   els.closeMiniMapFullscreen.addEventListener("click", toggleMiniMapFullscreen);
   els.mapSearchButton.addEventListener("click", searchAddress);
@@ -188,6 +191,18 @@ function handleDocumentClick(event) {
   const openComplete = event.target.closest("[data-complete-task]");
   if (openComplete) {
     openCompleteModal(openComplete.dataset.completeTask);
+    return;
+  }
+
+  const editTask = event.target.closest("[data-edit-task]");
+  if (editTask) {
+    openEditTaskModal(editTask.dataset.editTask);
+    return;
+  }
+
+  const shareTask = event.target.closest("[data-share-task]");
+  if (shareTask) {
+    shareTaskInfo(shareTask.dataset.shareTask);
     return;
   }
 
@@ -906,7 +921,19 @@ function renderLiveFeed() {
     <article class="feed-item ${item.type}">
       <div class="feed-top">
         <strong>${escapeHtml(item.title)}</strong>
-        <span class="feed-date">${formatDateTimeShort(new Date(item.time))}</span>
+        <div class="feed-top-actions">
+          <span class="feed-date">${formatDateTimeShort(new Date(item.time))}</span>
+          ${currentRole === "admin" ? `
+            <button class="feed-share-action" data-share-task="${escapeAttr(item.taskId)}" type="button" title="Görev bilgilerini paylaş">
+              <i class="fa-solid fa-share-nodes"></i>
+              Paylaş
+            </button>
+            <button class="feed-edit-action" data-edit-task="${escapeAttr(item.taskId)}" type="button" title="Görevi düzenle">
+              <i class="fa-solid fa-pen-to-square"></i>
+              Düzenle
+            </button>
+          ` : ""}
+        </div>
       </div>
       <p>${escapeHtml(item.desc)}</p>
       ${renderFeedDetails(item.task, item.type === "success")}
@@ -1191,6 +1218,183 @@ function deleteOpenTask(taskId) {
     inputLabel: "Silmek için SİL yazın",
     okText: "Görevi Sil"
   });
+}
+
+function openEditTaskModal(taskId) {
+  if (currentRole !== "admin") {
+    showToast("Görevi yalnızca admin düzenleyebilir.", "error");
+    return;
+  }
+
+  const task = taskData.find((item) => item.id === taskId);
+  if (!task) {
+    showToast("Düzenlenecek görev bulunamadı.", "error");
+    return;
+  }
+
+  $("#editTaskId").value = task.id;
+  $("#editTaskAssignee").innerHTML = buildPersonnelOptions(task.pId);
+  $("#editTaskCustomer").value = task.customer || "";
+  $("#editTaskPhone").value = task.phone || "";
+  $("#editTaskDetail").value = task.detail || "";
+  $("#editTaskAddress").value = task.address || "";
+  $("#editTaskNote").value = task.note || "";
+  $("#editTaskPrice").value = task.price || "";
+
+  const isCompleted = task.status === "completed";
+  $("#editCompletedFields").classList.toggle("hidden", !isCompleted);
+  $("#editTaskStatusText").textContent = isCompleted
+    ? "Tamamlanmış servis bilgileri düzenleniyor."
+    : "Devam eden görev bilgileri düzenleniyor.";
+
+  openModal("editTaskModal");
+}
+
+function buildPersonnelOptions(selectedId) {
+  const hasSelectedPerson = personnelData.some((person) => person.id === selectedId);
+  const options = personnelData.map((person) => (
+    `<option value="${escapeAttr(person.id)}" ${person.id === selectedId ? "selected" : ""}>${escapeHtml(person.name)} (${escapeHtml(person.status || "Bekliyor")})</option>`
+  ));
+
+  if (selectedId && !hasSelectedPerson) {
+    options.unshift(`<option value="${escapeAttr(selectedId)}" selected>Kayıtlı olmayan personel</option>`);
+  }
+
+  return options.join("");
+}
+
+async function shareTaskInfo(taskId) {
+  const task = taskData.find((item) => item.id === taskId);
+  if (!task) {
+    showToast("Paylaşılacak görev bulunamadı.", "error");
+    return;
+  }
+
+  const person = personnelData.find((item) => item.id === task.pId);
+  const message = buildTaskShareText(task, person);
+
+  try {
+    if (navigator.share) {
+      await navigator.share({
+        title: `Gökhan Makina - ${task.customer}`,
+        text: message
+      });
+      showToast("Paylaşım hazırlandı.", "success");
+      return;
+    }
+
+    await copyTextToClipboard(message);
+    showToast("Görev bilgileri kopyalandı.", "success");
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    console.error(error);
+    showToast("Paylaşım hazırlanamadı.", "error");
+  }
+}
+
+function buildTaskShareText(task, person) {
+  const statusText = task.status === "completed" ? "Servis tamamlandı" : "Görev atandı";
+  const date = task.status === "completed" && task.completedAt
+    ? new Date(task.completedAt)
+    : new Date(task.createdAt || Date.now());
+
+  const rows = [
+    "Gökhan Makina Servis Bilgisi",
+    `Durum: ${statusText}`,
+    `Tarih: ${formatDateTimeShort(date)}`,
+    person ? `Personel: ${person.name}` : "",
+    task.customer ? `Müşteri: ${task.customer}` : "",
+    task.phone ? `Telefon: ${task.phone}` : "",
+    task.detail ? `İşlem detayı: ${task.detail}` : "",
+    task.address ? `Adres: ${task.address}` : ""
+  ];
+
+  if (task.status === "completed") {
+    if (task.note) rows.push(`Personel notu: ${task.note}`);
+    rows.push(`Servis ücreti: ${formatMoney(task.price || 0)}`);
+  }
+
+  return rows.filter(Boolean).join("\n");
+}
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
+}
+
+async function saveEditedTask(event) {
+  event.preventDefault();
+  const taskId = $("#editTaskId").value;
+  const task = taskData.find((item) => item.id === taskId);
+  if (!task) {
+    showToast("Güncellenecek görev bulunamadı.", "error");
+    return;
+  }
+
+  const pId = $("#editTaskAssignee").value;
+  const customer = $("#editTaskCustomer").value.trim();
+  const phone = $("#editTaskPhone").value.trim();
+  const detail = $("#editTaskDetail").value.trim();
+  const address = $("#editTaskAddress").value.trim();
+  const button = $("#saveEditTaskButton");
+
+  if (!pId) {
+    showToast("Görev için personel seçin.", "error");
+    return;
+  }
+  if (!customer || !detail) {
+    showToast("Müşteri ve işlem detayı zorunlu.", "error");
+    return;
+  }
+
+  const updates = {
+    pId,
+    customer,
+    phone,
+    detail,
+    address
+  };
+
+  if (task.status === "completed") {
+    updates.note = $("#editTaskNote").value.trim();
+    updates.price = Number($("#editTaskPrice").value) || 0;
+  }
+
+  setBusy(button, true, "Kaydediliyor...");
+  try {
+    const oldPersonId = task.pId;
+    await store.updateTask(task.id, updates);
+
+    if (task.status === "open") {
+      if (oldPersonId !== pId) {
+        const oldPersonHasOpenTask = taskData.some((item) => item.id !== task.id && item.pId === oldPersonId && item.status === "open");
+        if (!oldPersonHasOpenTask) {
+          await store.updatePersonnel(oldPersonId, { status: "Bekliyor" });
+        }
+      }
+      await store.updatePersonnel(pId, { status: "Sahada" });
+    }
+
+    closeModal("editTaskModal");
+    showToast("Görev bilgileri güncellendi.", "success");
+  } catch (error) {
+    console.error(error);
+    showToast("Görev bilgileri güncellenemedi.", "error");
+  } finally {
+    setBusy(button, false);
+  }
 }
 
 async function assignTask(event) {
